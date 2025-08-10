@@ -1,5 +1,8 @@
 name: Automated PR Review with LangGraph
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
