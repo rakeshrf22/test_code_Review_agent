@@ -6,7 +6,42 @@ on:
 
 jobs:
   review:
+    runs-on: ubuntu-latestname: PR Review Agent
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          pip install PyGithub
+
+      - name: Run PR review agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python pr_review_agent.py
+
+      - name: Upload review report
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-review-report
+          path: reports/review_report.html
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
