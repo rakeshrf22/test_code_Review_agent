@@ -1,5 +1,3 @@
-langchain
-langgraph
-langchain_openai
 PyGithub
-requests
+langchain
+openai
