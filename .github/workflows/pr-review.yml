@@ -25,3 +25,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python pr_review_agent.py
+- name: Debug Info
+  run: echo "Workflow triggered for PR #${{ github.event.pull_request.number }}"
