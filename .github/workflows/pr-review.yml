@@ -5,62 +5,32 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  review:
-    runs-on: ubuntu-latestname: PR Review Agent
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-
-jobs:
-  review:
+  code-review:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
-          pip install PyGithub
+          pip install langchain langgraph langchain-openai PyGithub
 
-      - name: Run PR review agent
+      - name: Run PR Review Agent
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          python pr_review_agent.py
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python pr_review_agent.py
 
-      - name: Upload review report
+      - name: Upload Review Report
         uses: actions/upload-artifact@v3
         with:
           name: code-review-report
-          path: reports/review_report.html
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run LangGraph PR Review
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          python pr_review_agent.py
+          path: review_report.html
