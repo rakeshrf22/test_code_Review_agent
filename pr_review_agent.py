@@ -1,78 +1,91 @@
 import os
-from pathlib import Path
-import requests
-from github import Github  # pip install PyGithub
+import json
+from github import Github
+from langchain_openai import ChatOpenAI
+from langgraph.graph import StateGraph, START, END
 
-# LangGraph imports would go here
-# from langgraph import Graph, Node ...
+# ====== LangGraph Setup ======
+from typing_extensions import TypedDict
 
-# ---------- Configuration ----------
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO_NAME = os.getenv("GITHUB_REPOSITORY")  # e.g., "rakeshrf22/test_code_Review_agent"
-PR_NUMBER = os.getenv("PR_NUMBER", "1")  # will be passed from the workflow
+class ReviewState(TypedDict):
+    code: str
+    review_summary: str
+    findings: list
 
-def format_review_comment(review_summary, findings_list):
+def analyze_code(state: ReviewState):
+    """Analyze the code using LLM."""
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    prompt = f"""
+    You are a senior code reviewer.
+    Review the following Java code for best practices, bugs, and improvements.
+    Provide:
+    1. A summary
+    2. A bullet-point list of findings
+
+    Code:
+    {state['code']}
+    """
+    response = llm.invoke(prompt).content
+    summary, *findings = response.split("\n")
+    return {"review_summary": summary, "findings": findings}
+
+# ====== LangGraph Orchestration ======
+graph = StateGraph(ReviewState)
+graph.add_node("analyze", analyze_code)
+graph.add_edge(START, "analyze")
+graph.add_edge("analyze", END)
+review_agent = graph.compile()
+
+# ====== GitHub Helper ======
+def post_github_comment(repo_name, pr_number, comment_body):
+    g = Github(os.environ["GITHUB_TOKEN"])
+    repo = g.get_repo(repo_name)
+    pr = repo.get_pull(int(pr_number))
+    pr.create_issue_comment(comment_body)
+
+def format_html_review(summary, findings):
     css_styles = ""
     with open(".github/workflows/style.css", "r") as f:
         css_styles = f.read()
 
-    html_comment = f"""
-    <style>
-    {css_styles}
-    </style>
+    html_report = f"""
+    <style>{css_styles}</style>
     <div class="review-container">
         <h2>🤖 Automated Code Review Report</h2>
-        <p>{review_summary}</p>
+        <p>{summary}</p>
         <ul>
-            {''.join([f"<li>{finding}</li>" for finding in findings_list])}
+            {''.join([f"<li>{f}</li>" for f in findings])}
         </ul>
     </div>
     """
-    return html_comment
+    return html_report
 
+if __name__ == "__main__":
+    repo_name = os.environ["GITHUB_REPOSITORY"]
+    pr_number = os.environ["PR_NUMBER"]
 
-# ---------- HTML Report Generator ----------
-def generate_html_report(summary, details):
-    template_path = Path("reports/report_template.html").read_text()
-    filled_html = template_path.replace("{{REVIEW_SUMMARY}}", summary)\
-                               .replace("{{REVIEW_DETAILS}}", details)
-    Path("reports/review_report.html").write_text(filled_html)
+    # Example: scan a Java file
+    with open("src/main/java/com/example/MyClass.java", "r") as f:
+        code_content = f.read()
 
-# ---------- Markdown for GitHub Comment ----------
-def format_markdown_report(summary, details):
-    return f"""## 🤖 Automated Code Review
+    result = review_agent.invoke({"code": code_content})
+    summary = result["review_summary"]
+    findings = result["findings"]
 
-**Summary**  
+    # Save HTML report
+    html_review = format_html_review(summary, findings)
+    with open("review_report.html", "w") as f:
+        f.write(html_review)
+
+    # Post PR comment (without full CSS, since GitHub strips most styles)
+    markdown_comment = f"""
+### 🤖 Automated Code Review
+**Summary:**
 {summary}
 
-**Details**  
-{details}
+**Findings:**
+{"".join([f"- {f}\n" for f in findings])}
+
+📎 [Download Full Styled Report](./review_report.html)
 """
-
-# ---------- Dummy Review Logic (Replace with LangGraph output) ----------
-def run_code_review():
-    # Here, integrate your LangGraph pipeline to review Java code.
-    # For now, we'll return dummy data.
-    summary = "No major issues found, but some improvements suggested."
-    details = "- Method `processData()` could use better exception handling.\n- Consider adding Javadoc for `UserService`."
-    return summary, details
-
-# ---------- Post to GitHub PR ----------
-def post_pr_comment(markdown_text):
-    gh = Github(GITHUB_TOKEN)
-    repo = gh.get_repo(REPO_NAME)
-    pr = repo.get_pull(int(PR_NUMBER))
-    pr.create_issue_comment(markdown_text)
-
-# ---------- Main Orchestration ----------
-if __name__ == "__main__":
-    summary, details = run_code_review()
-
-    # Save HTML styled report
-    generate_html_report(summary, f"<ul><li>{'</li><li>'.join(details.splitlines())}</li></ul>")
-
-    # Post Markdown to PR
-    markdown_text = format_markdown_report(summary, details)
-    post_pr_comment(markdown_text)
-
-    print("✅ Review complete. HTML report generated and PR comment posted.")
+    post_github_comment(repo_name, pr_number, markdown_comment)
