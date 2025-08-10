@@ -7,7 +7,7 @@ from github import Github  # pip install PyGithub
 # from langgraph import Graph, Node ...
 
 # ---------- Configuration ----------
-GITHUB_TOKEN = os.getenv("GI_TOKEN")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO_NAME = os.getenv("GITHUB_REPOSITORY")  # e.g., "rakeshrf22/test_code_Review_agent"
 PR_NUMBER = os.getenv("PR_NUMBER", "1")  # will be passed from the workflow
 
