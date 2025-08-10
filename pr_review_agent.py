@@ -2,6 +2,7 @@ import os
 from github import Github
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
+from pathlib import Path
 
 # -----------------------------
 # 1. Environment Variables
@@ -61,3 +62,14 @@ Output:
 File: {filename}
 
 Code:
+
+"""
+def generate_html_report(summary, details):
+    template_path = Path("reports/report_template.html").read_text()
+    filled_html = template_path.replace("{{REVIEW_SUMMARY}}", summary)\
+                               .replace("{{REVIEW_DETAILS}}", details)
+    Path("reports/review_report.html").write_text(filled_html)
+
+# Example usage
+generate_html_report("No major issues found", "<ul><li>Consider refactoring method X</li></ul>")
+
