@@ -1,0 +1,24 @@
+"""
+)
+
+# -----------------------------
+# 5. Process Each Java File
+# -----------------------------
+for file in java_files:
+    print(f"📄 Reviewing: {file.filename}")
+
+    # Get file content from PR branch
+    file_content = repo.get_contents(file.filename, ref=pr.head.ref)
+    code = file_content.decoded_content.decode("utf-8", errors="ignore")
+
+    # Generate review
+    prompt = review_prompt.format(filename=file.filename, code=code)
+    review_feedback = llm.predict(prompt)
+
+    # Post review as PR comment
+    comment_body = f"### 🤖 AI Code Review: `{file.filename}`\n\n{review_feedback}"
+    pr.create_issue_comment(comment_body)
+
+    print(f"✅ Review posted for {file.filename}")
+
+print("🎯 All Java files reviewed successfully!")
