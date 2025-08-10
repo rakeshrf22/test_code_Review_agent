@@ -1,15 +1,14 @@
-name: PR Code Review
+name: Automated PR Review
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
 jobs:
-  code-review:
+  review:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -19,18 +18,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install langchain langgraph langchain-openai PyGithub
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Run PR Review Agent
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: python pr_review_agent.py
-
-      - name: Upload Review Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-review-report
-          path: review_report.html
