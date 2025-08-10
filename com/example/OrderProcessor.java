@@ -38,6 +38,7 @@ public class OrderProcessor {
         }
     }
 
+    
     // Unused private method — maybe remove it
     private void debugOrders() {
         for (String order : orders) {
