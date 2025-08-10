@@ -11,6 +11,26 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO_NAME = os.getenv("GITHUB_REPOSITORY")  # e.g., "rakeshrf22/test_code_Review_agent"
 PR_NUMBER = os.getenv("PR_NUMBER", "1")  # will be passed from the workflow
 
+def format_review_comment(review_summary, findings_list):
+    css_styles = ""
+    with open(".github/workflows/style.css", "r") as f:
+        css_styles = f.read()
+
+    html_comment = f"""
+    <style>
+    {css_styles}
+    </style>
+    <div class="review-container">
+        <h2>🤖 Automated Code Review Report</h2>
+        <p>{review_summary}</p>
+        <ul>
+            {''.join([f"<li>{finding}</li>" for finding in findings_list])}
+        </ul>
+    </div>
+    """
+    return html_comment
+
+
 # ---------- HTML Report Generator ----------
 def generate_html_report(summary, details):
     template_path = Path("reports/report_template.html").read_text()
