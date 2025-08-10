@@ -1,33 +1,62 @@
 import os
 from github import Github
 from langchain.prompts import PromptTemplate
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
-# --- GitHub Setup ---
-gh = Github(os.environ["GITHUB_TOKEN"])
-repo_name = os.environ["GITHUB_REPOSITORY"]
-pr_number = int(os.environ["PR_NUMBER"])
-repo = gh.get_repo(repo_name)
-pr = repo.get_pull(pr_number)
+# -----------------------------
+# 1. Environment Variables
+# -----------------------------
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+LANGCHAIN_API_KEY = os.environ.get("LANGCHAIN_API_KEY")
+PR_NUMBER = os.environ.get("PR_NUMBER")
+REPO_NAME = os.environ.get("GITHUB_REPOSITORY")
 
-# --- Collect Java files from the PR ---
-java_files = [
-    f for f in pr.get_files()
-    if f.filename.endswith(".java")
-]
+if not all([GITHUB_TOKEN, LANGCHAIN_API_KEY, PR_NUMBER, REPO_NAME]):
+    raise ValueError("Missing required environment variables.")
+
+# -----------------------------
+# 2. GitHub Client
+# -----------------------------
+gh = Github(GITHUB_TOKEN)
+repo = gh.get_repo(REPO_NAME)
+pr = repo.get_pull(int(PR_NUMBER))
+
+print(f"🔍 Reviewing PR #{PR_NUMBER} in repo {REPO_NAME}")
+
+# -----------------------------
+# 3. Collect Java Files in PR
+# -----------------------------
+java_files = [f for f in pr.get_files() if f.filename.endswith(".java")]
 
 if not java_files:
-    print("No Java files found in PR.")
+    print("⚠️ No Java files found in this PR. Exiting...")
     exit(0)
 
-# --- AI Review ---
-llm = ChatOpenAI(model="gpt-4", temperature=0)
+# -----------------------------
+# 4. AI Model Setup
+# -----------------------------
+llm = ChatOpenAI(
+    model="gpt-4o",  # You can use gpt-4o-mini for cost efficiency
+    temperature=0,
+    api_key=LANGCHAIN_API_KEY
+)
 
 review_prompt = PromptTemplate(
     input_variables=["filename", "code"],
     template="""
-You are a senior Java code reviewer.
-Review the following file for code quality, best practices, potential bugs, and improvements.
+You are a **Senior Java Architect** performing a **strict, professional code review**.
+
+Review the following file for:
+- **Correctness** (bugs, logic errors, null handling, edge cases)
+- **Code Quality** (readability, maintainability, naming conventions)
+- **Performance**
+- **Security** (input validation, injection risks)
+- **Best Practices** (Java, OOP, design patterns)
+
+Output:
+- List findings as **clear bullet points**
+- Suggest **specific improvements**
+- Keep feedback **professional and concise**
 
 File: {filename}
 
